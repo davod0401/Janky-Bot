@@ -14,4 +14,4 @@ async def on_message(message):
         mensaje = message.content.split('*')
         await message.channel.send('Dijiste: ' + mensaje[1])
 
-client.run('OTUyNzc3MTE0MTA3NjU0MTU0.Yi681Q.vBrDOr1IxgGdnx_CE0mKzcV3wIU') #Token del bot
+client.run('TOKEN') #Token del bot
