@@ -23,6 +23,8 @@ import functools
 import itertools
 import math
 import random
+import requests
+from bs4 import BeautifulSoup
 
 import discord
 import youtube_dl
@@ -36,6 +38,23 @@ youtube_dl.utils.bug_reports_message = lambda: ''
 voteskip = False
 idle_timeout = 180 
 default_volume = 0.5
+
+
+def spotify_parse(search:str):
+    '''Funcion que comprueba si la busqueda realizada es un enlace de spotify,
+       si lo es extrae el titulo de la cancion y lo retorna,
+       de lo contrario retorna la misma busqueda'''
+       
+    if search.startswith('https://open.spotify.com'):
+        URL = search
+        page = requests.get(URL)
+        soup = BeautifulSoup(page.content, "html.parser")
+        #print(soup.find('title'))
+        title = soup.title.get_text().split('|')
+        title_s = title[0]
+        return title_s
+    else:
+        return search
 
 class VoiceError(Exception):
     pass
@@ -500,7 +519,8 @@ class Music(commands.Cog):
 
         async with ctx.typing():
             try:
-                source = await YTDLSource.create_source(ctx, search, loop=self.bot.loop)
+                yt_query = spotify_parse(search)
+                source = await YTDLSource.create_source(ctx, yt_query, loop=self.bot.loop)
             except YTDLError as e:
                 await ctx.send('Ocurrio un error procesando la petición: {}'.format(str(e)))
             else:
