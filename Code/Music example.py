@@ -35,7 +35,7 @@ youtube_dl.utils.bug_reports_message = lambda: ''
 # Variables de configuracion
 voteskip = False
 idle_timeout = 180 
-
+default_volume = 0.5
 
 class VoiceError(Exception):
     pass
@@ -121,7 +121,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         processed_info = await loop.run_in_executor(None, partial)
 
         if processed_info is None:
-            raise YTDLError('Couldn\'t fetch `{}`'.format(webpage_url))
+            raise YTDLError('No se pudo encontrar `{}`'.format(webpage_url))
 
         if 'entries' not in processed_info:
             info = processed_info
@@ -167,7 +167,7 @@ class Song:
                                color=discord.Color.blurple())
                  .add_field(name='Duración', value=self.source.duration)
                  .add_field(name='Solicitado por', value=self.requester.mention)
-                 .add_field(name='Canal', value='[{0.source.uploader}]({0.source.uploader_url})'.format(self))
+                 .add_field(name='Autor', value='[{0.source.uploader}]({0.source.uploader_url})'.format(self))
                  .add_field(name='URL', value='[Click]({0.source.url})'.format(self))
                  .set_thumbnail(url=self.source.thumbnail))
 
@@ -208,7 +208,7 @@ class VoiceState:
         self.songs = SongQueue()
 
         self._loop = False
-        self._volume = 0.5
+        self._volume = default_volume
         self.skip_votes = set()
 
         self.audio_player = bot.loop.create_task(self.audio_player_task())
@@ -305,7 +305,7 @@ class Music(commands.Cog):
         ctx.voice_state = self.get_voice_state(ctx)
 
     async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
-        await ctx.send('An error occurred: {}'.format(str(error)))
+        await ctx.send('Ocurrio un error: {}'.format(str(error)))
 
     @commands.command(name='join', invoke_without_subcommand=True)
     async def _join(self, ctx: commands.Context):
@@ -327,7 +327,7 @@ class Music(commands.Cog):
         """
 
         if not channel and not ctx.author.voice:
-            raise VoiceError('You are neither connected to a voice channel nor specified a channel to join.')
+            raise VoiceError('No estas conectado en ningun canal o no se especifico un canal para conectarse')
 
         destination = channel or ctx.author.voice.channel
         if ctx.voice_state.voice:
@@ -342,23 +342,23 @@ class Music(commands.Cog):
         """Clears the queue and leaves the voice channel."""
 
         if not ctx.voice_state.voice:
-            return await ctx.send('Not connected to any voice channel.')
+            return await ctx.send('No estas conectado a ningun canal')
 
         await ctx.voice_state.stop()
         del self.voice_states[ctx.guild.id]
 
-    @commands.command(name='volume')
+    @commands.command(name='volumen', aliases=['vol'])
     async def _volume(self, ctx: commands.Context, *, volume: int):
         """Sets the volume of the player."""
 
         if not ctx.voice_state.is_playing:
-            return await ctx.send('Nothing being played at the moment.')
+            return await ctx.send('No hay nada en reproducción')
 
         if 0 > volume > 100:
-            return await ctx.send('Volume must be between 0 and 100')
+            return await ctx.send('El volumen debe ser entre 0 y 100')
 
         ctx.voice_state.volume = volume / 100
-        await ctx.send('Volume of the player set to {}%'.format(volume))
+        await ctx.send('Volumen ajustado a {}%'.format(volume))
 
     @commands.command(name='now', aliases=['current', 'playing'])
     async def _now(self, ctx: commands.Context):
@@ -366,7 +366,7 @@ class Music(commands.Cog):
 
         await ctx.send(embed=ctx.voice_state.current.create_embed())
 
-    @commands.command(name='pause')
+    @commands.command(name='pausa')
     @commands.has_permissions(manage_guild=True)
     async def _pause(self, ctx: commands.Context):
         """Pauses the currently playing song."""
@@ -375,12 +375,12 @@ class Music(commands.Cog):
             ctx.voice_state.voice.pause()
             await ctx.message.add_reaction('⏯')
 
-    @commands.command(name='resume')
+    @commands.command(name='resumir')
     @commands.has_permissions(manage_guild=True)
     async def _resume(self, ctx: commands.Context):
         """Resumes a currently paused song."""
 
-        if not ctx.voice_state.is_playing and ctx.voice_state.voice.is_paused():
+        if not ctx.voice_state.voice.is_playing() and ctx.voice_state.voice.is_paused():
             ctx.voice_state.voice.resume()
             await ctx.message.add_reaction('⏯')
 
@@ -446,7 +446,7 @@ class Music(commands.Cog):
         for i, song in enumerate(ctx.voice_state.songs[start:end], start=start):
             queue += '`{0}.` [**{1.source.title}**]({1.source.url})\n'.format(i + 1, song)
 
-        embed = (discord.Embed(description='**{} Lista:**\n\n{}'.format(len(ctx.voice_state.songs), queue))
+        embed = (discord.Embed(description='**{} canciones:**\n\n{}'.format(len(ctx.voice_state.songs), queue))
                  .set_footer(text='Pagina {}/{}'.format(page, pages)))
         await ctx.send(embed=embed)
 
@@ -460,7 +460,7 @@ class Music(commands.Cog):
         ctx.voice_state.songs.shuffle()
         await ctx.message.add_reaction('✅')
 
-    @commands.command(name='remove', aliases=['r'])
+    @commands.command(name='quitar', aliases=['r'])
     async def _remove(self, ctx: commands.Context, index: int):
         """Removes a song from the queue at a given index."""
 
@@ -502,43 +502,48 @@ class Music(commands.Cog):
             try:
                 source = await YTDLSource.create_source(ctx, search, loop=self.bot.loop)
             except YTDLError as e:
-                await ctx.send('An error occurred while processing this request: {}'.format(str(e)))
+                await ctx.send('Ocurrio un error procesando la petición: {}'.format(str(e)))
             else:
                 song = Song(source)
 
                 await ctx.voice_state.songs.put(song)
                 await ctx.send('Añadido {}'.format(str(source)))
 
-    @commands.command(name='ayuda', aliases=['comandos', 'help'])
-    async def _now(self, ctx: commands.Context):
+    @commands.command(name='ayuda', aliases=['comandos'])
+    async def _ayuda(self, ctx: commands.Context):
         """Muestra todos los comandos del bot"""
-        embed = (discord.Embed(title='Comandos Janky',
+        embedh = (discord.Embed(title='Comandos Janky',
                                description='Pagina de ayuda Janky bot',
                                color=discord.Color.blurple())
-                 .add_field(name='play, p', value="Añadir cancion a la lista. Acepta texto y links", inline=False)
+                 .add_field(name='play, p', value="Añadir canción a la lista. Acepta texto y links", inline=False)
                  .add_field(name='leave, disconnect, dc', value="Vacia la lista y desconecta el bot", inline=False)
-                 .add_field(name='skip, next, s', value="Pasa a la siguiente cancion", inline=False)
+                 .add_field(name='skip, next, s', value="Pasa a la siguiente canción", inline=False)
                  .add_field(name='aleatorio, random', value="Ordena la lista de forma aleatoria", inline=False)
-                 .add_field(name='lista, l', value="Muestra la lista de reproduccion", inline=False)
-                 .add_field(name='stop, clear', value="Borra la lista de reproduccion", inline=False)
-                 .add_field(name='remove, r', value="Elimina la cancion de la lista con el indice indicado", inline=False)
-                 .add_field(name='', value="", inline=False))
+                 .add_field(name='lista, l', value="Muestra la lista de reproducción", inline=False)
+                 .add_field(name='stop, clear', value="Borra la lista de reproducción", inline=False)
+                 .add_field(name='quitar, r', value="Elimina la canción de la lista con el indice indicado", inline=False)
+                 .add_field(name='repetir, bucle, loop', value="Repite la canción actual hasta que se desactive", inline=False)
+                 .add_field(name='volumen, vol', value="Ajusta el volumen de la siguiente canción", inline=False)
+                 .add_field(name='pausa', value="Pausa la reproducción", inline=False)
+                 .add_field(name='resumir', value="Reanuda la reproducción", inline=False)
+                 .add_field(name='summon', value="Mueve el bot al canal escrito o al actual si no se especifica", inline=False)
+        )
                  #.set_thumbnail(url=self.source.thumbnail))
 
-        await ctx.send(embed)
+        await ctx.send(embed=embedh)
 
     @_join.before_invoke
     @_play.before_invoke
     async def ensure_voice_state(self, ctx: commands.Context):
         if not ctx.author.voice or not ctx.author.voice.channel:
-            raise commands.CommandError('You are not connected to any voice channel.')
+            raise commands.CommandError('No estas conectado a ningun canal de voz.')
 
         if ctx.voice_client:
             if ctx.voice_client.channel != ctx.author.voice.channel:
-                raise commands.CommandError('Bot is already in a voice channel.')
+                raise commands.CommandError('Ya estoy en este canal.')
 
 
-bot = commands.Bot('music.', description='A falta de groovy.')
+bot = commands.Bot('-', description='A falta de groovy.')
 bot.add_cog(Music(bot))
 
 
