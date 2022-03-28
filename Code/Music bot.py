@@ -45,7 +45,7 @@ def spotify_parse(search:str):
        si lo es extrae el titulo de la cancion y lo retorna,
        de lo contrario retorna la misma busqueda'''
        
-    if search.startswith('https://open.spotify.com'):
+    if search.startswith('https://open.spotify.com/track'):
         URL = search
         page = requests.get(URL)
         soup = BeautifulSoup(page.content, "html.parser")
@@ -53,6 +53,8 @@ def spotify_parse(search:str):
         title = soup.title.get_text().split('|')
         title_s = title[0]
         return title_s
+    elif search.startswith('https://open.spotify.com/playlist'):
+        raise ValueError("No se aceptan playlists de spotify")
     else:
         return search
 
@@ -520,6 +522,9 @@ class Music(commands.Cog):
         async with ctx.typing():
             try:
                 yt_query = spotify_parse(search)
+            except ValueError as ee:
+                await ctx.send('Ocurrio un error procesando la petición: {}'.format(str(ee)))
+            try:
                 source = await YTDLSource.create_source(ctx, yt_query, loop=self.bot.loop)
             except YTDLError as e:
                 await ctx.send('Ocurrio un error procesando la petición: {}'.format(str(e)))
