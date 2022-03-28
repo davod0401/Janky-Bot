@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 
-#Port Youtube-dl to yt-dlp???
 """
 Copyright (c) 2019 Valentin B.
 
@@ -13,11 +12,19 @@ Use this as an example or a base for your own bot and extend it as you want. If 
 Requirements:
 
 Python 3.5+
-pip install -U discord.py pynacl youtube-dl
-
 You also need FFmpeg in your PATH environment variable or the FFmpeg.exe binary in your bot's directory on Windows.
+
 """
 
+#Requiere estos paquetes ahora
+#python -m pip install -U discord.py pynacl youtube-dl requests beautifulsoup4
+#FFmpeg en el path
+
+'''
+To do: *Usar libreria spotipy para parsear playlists. Esto puede ser problematico si se añaden todas las canciones a la vez
+y no se encuentra alguna en youtube... deberia buscar una por una? en grupos?...
+*Port Youtube-dl to yt-dlp??? No hace falta por ahora...
+'''
 import asyncio
 import functools
 import itertools
@@ -35,9 +42,9 @@ from discord.ext import commands
 youtube_dl.utils.bug_reports_message = lambda: ''
 
 # Variables de configuracion
-voteskip = False
-idle_timeout = 180 
-default_volume = 0.5
+voteskip = False #Requerir votacion para saltar canciones
+idle_timeout = 180 #Tiempo inactivo para autodesconectar
+default_volume = 0.5 #Volumen por defecto
 
 
 def spotify_parse(search:str):
@@ -54,7 +61,7 @@ def spotify_parse(search:str):
         title_s = title[0]
         return title_s
     elif search.startswith('https://open.spotify.com/playlist'):
-        raise ValueError("No se aceptan playlists de spotify")
+        raise ValueError("No se aceptan playlists de spotify(por ahora)")
     else:
         return search
 
@@ -514,6 +521,8 @@ class Music(commands.Cog):
 
         This command automatically searches from various sites if no URL is provided.
         A list of these sites can be found here: https://rg3.github.io/youtube-dl/supportedsites.html
+        
+        Extendido para procesar urls de spotify
         """
 
         if not ctx.voice_state.voice:
@@ -536,7 +545,7 @@ class Music(commands.Cog):
 
     @commands.command(name='ayuda', aliases=['comandos'])
     async def _ayuda(self, ctx: commands.Context):
-        """Muestra todos los comandos del bot"""
+        """Muestra un embed de ayuda con todos los comandos del bot"""
         embedh = (discord.Embed(title='Comandos Janky',
                                description='Pagina de ayuda Janky bot',
                                color=discord.Color.blurple())
