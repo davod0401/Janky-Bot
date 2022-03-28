@@ -21,6 +21,12 @@ You also need FFmpeg in your PATH environment variable or the FFmpeg.exe binary 
 #FFmpeg en el path
 
 '''
+davod0401:
+Comandos traducidos y arreglados (algunos no funcionaban) se añadieron aliases para los comandos comunes eg. play > p
+Comando de ayuda.
+Rutina para buscar enlaces de spotify en youtube.
+
+
 To do: *Usar libreria spotipy para parsear playlists. Esto puede ser problematico si se añaden todas las canciones a la vez
 y no se encuentra alguna en youtube... deberia buscar una por una? en grupos?...
 *Port Youtube-dl to yt-dlp??? No hace falta por ahora...
@@ -103,7 +109,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         self.requester = ctx.author
         self.channel = ctx.channel
         self.data = data
-
+        #Pa que todo esto?
         self.uploader = data.get('uploader')
         self.uploader_url = data.get('uploader_url')
         date = data.get('upload_date')
@@ -274,7 +280,7 @@ class VoiceState:
                 # the player will disconnect due to performance
                 # reasons.
                 try:
-                    async with timeout(idle_timeout):
+                    async with timeout(idle_timeout): #Tiempo ajustable 
                         self.current = await self.songs.get()
                 except asyncio.TimeoutError:
                     self.bot.loop.create_task(self.stop())
